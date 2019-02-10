@@ -10,15 +10,16 @@ musl.tar.xz :
 	wget -c https://www.musl-libc.org/releases/musl-1.1.21.tar.gz \
 		-O musl.tar.xz
 
-musl : musl.tar.xz
+musl : musl.tar.xz clang
 	mkdir musl
 	tar -xf musl.tar.xz --directory musl --strip-components=1
-	cd musl && ./configure --prefix=root && make install
+	export CC=`pwd`/clang/bin/clang && cd musl && ./configure --prefix=root && make install
 
 helloc.i : helloc.c musl clang
 	./clang/bin/clang \
 		-std=c11 \
 		-nostdinc \
+		--sysroot ./musl/root \
 		-isystem ./musl/root/include \
 		-E helloc.c \
 		-o helloc.i
@@ -26,22 +27,21 @@ helloc.i : helloc.c musl clang
 helloc.o : helloc.i clang
 	./clang/bin/clang \
 		-std=c11 \
-		-nostdlib \
 		-nostdinc \
+		-nodefaultlibs \
+		--sysroot ./musl/root \
 		-c helloc.i \
 		-o helloc.o
 
 helloc : helloc.o clang musl
 	./clang/bin/ld.lld \
+		musl/root/lib/crt1.o \
 		helloc.o \
 		-nostdlib \
+		-static \
+		--sysroot ./musl/root \
 		-L musl/root/lib \
 		-lc \
-		-ldl \
-		-lm \
-		-lutil \
-		-lrt \
-		-e main \
 		-o helloc
 
 clean:
